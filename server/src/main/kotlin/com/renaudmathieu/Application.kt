@@ -9,18 +9,21 @@ import io.ktor.server.routing.*
 import java.io.File
 
 fun main() {
-    embeddedServer(Netty, port = SERVER_PORT, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
+    embeddedServer(
+        factory = Netty,
+        port = SERVER_PORT,
+        host = "0.0.0.0",
+        module = Application::module
+    ).start(wait = true)
 }
 
 fun Application.module() {
     routing {
-        get("/") {
-            call.respondText("Ktor: ${Greeting().greet()}")
-        }
 
         get("/track") {
+
             val resource = this.javaClass.classLoader.getResource("audio/sample.mp3")
+
             if (resource != null) {
                 call.respondFile(File(resource.toURI()))
             } else {

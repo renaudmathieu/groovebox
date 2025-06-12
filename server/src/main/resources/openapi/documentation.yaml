@@ -1,0 +1,28 @@
+openapi: "3.1.0"
+info:
+  title: "GrooveBox API"
+  description: "GrooveBox API"
+  version: "1.0.0"
+servers:
+  - url: "https://GrooveBox"
+paths:
+  /track:
+    get:
+      description: ""
+      responses:
+        "200":
+          description: "OK <br> A file response"
+          content:
+            application/*:
+              schema:
+                type: "object"
+                format: "binary"
+        "404":
+          description: "Not Found"
+          content:
+            text/plain:
+              schema:
+                type: "string"
+              examples:
+                Example#1:
+                  value: "Track not found"
