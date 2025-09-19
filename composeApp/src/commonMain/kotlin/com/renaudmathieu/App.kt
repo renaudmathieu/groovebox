@@ -2,7 +2,13 @@ package com.renaudmathieu
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -45,7 +51,7 @@ fun App() {
                         expandedHeight = 100.dp,
                         subtitle = {
                             Text(
-                                text = "12 Juin 2025 - DevLille",
+                                text = "droidcon Berlin",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontFamily = RobotoFontFamily()
                             )
