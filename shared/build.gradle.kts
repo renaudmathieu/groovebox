@@ -22,16 +22,16 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
-            implementation("androidx.media3:media3-ui-compose:1.7.1")
-            implementation("androidx.media3:media3-exoplayer:1.7.1")
-            implementation("androidx.media3:media3-ui:1.7.1")
-            implementation("androidx.media3:media3-common:1.7.1")
-            implementation("androidx.media3:media3-session:1.7.1")
-            implementation("io.insert-koin:koin-android:4.1.0")
+            implementation(libs.androidx.media3.ui.compose)
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.ui)
+            implementation(libs.androidx.media3.common)
+            implementation(libs.androidx.media3.session)
+            implementation(libs.koin.android)
         }
         commonMain.dependencies {
-            implementation("io.insert-koin:koin-core:4.1.0")
-            implementation("co.touchlab:kermit:2.0.2")
+            implementation(libs.koin.core)
+            implementation(libs.kermit)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

@@ -30,6 +30,12 @@ fun MusicPlayer(
 
     val uiState by viewModel.musicPlayerUiState.collectAsStateWithLifecycle()
 
+    // Collect initial track from ViewModel and set data source when available
+    val initialTrack by viewModel.initialTrack.collectAsStateWithLifecycle()
+    LaunchedEffect(initialTrack) {
+        initialTrack?.let { viewModel.setDataSource(it) }
+    }
+
     LaunchedEffect(uiState.isPlaying) {
         while (uiState.isPlaying) {
             viewModel.updatePosition()

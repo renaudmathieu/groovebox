@@ -5,6 +5,7 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 
 class MusicPlayerRepository(
+    private val audioPlayer: AudioPlayer,
     private val client: HttpClient = HttpClient()
 ) {
     private fun platformParam(): String {
@@ -49,4 +50,14 @@ class MusicPlayerRepository(
         val raw = fetchTracksRaw()
         return parseFirstTrack(raw)
     }
+
+    // Audio control methods delegated to the underlying AudioPlayer
+    fun play() = audioPlayer.play()
+    fun pause() = audioPlayer.pause()
+    fun stop() = audioPlayer.stop()
+    fun seekTo(positionMs: Long) = audioPlayer.seekTo(positionMs)
+    fun getCurrentPosition(): Long = audioPlayer.getCurrentPosition()
+    fun getDuration(): Long = audioPlayer.getDuration()
+    fun setDataSource(track: Track) = audioPlayer.setDataSource(track)
+    fun release() = audioPlayer.release()
 }
