@@ -8,7 +8,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,23 +36,10 @@ fun App() {
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                            subtitleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
                         title = {
                             Text(
                                 text = "GrooveBox",
                                 style = MaterialTheme.typography.headlineLarge,
-                            )
-                        },
-                        expandedHeight = 100.dp,
-                        subtitle = {
-                            Text(
-                                text = "droidcon Berlin",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontFamily = RobotoFontFamily()
                             )
                         },
                     )
