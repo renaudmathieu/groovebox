@@ -3,6 +3,7 @@ agp = "8.11.0"
 android-compileSdk = "36"
 android-minSdk = "24"
 android-targetSdk = "36"
+compileSdk = "36"
 androidx-activity = "1.11.0"
 androidx-appcompat = "1.7.1"
 androidx-constraintlayout = "2.2.1"
@@ -17,10 +18,15 @@ junit = "4.13.2"
 kermit = "2.0.8"
 koin = "4.1.1"
 kotlin = "2.2.20"
+kotlinSerialization = "2.2.20"
 kotlinx-coroutines = "1.10.2"
+kotlinxSerializationCore = "1.8.1"
 ktor = "3.3.0"
 logback = "1.5.18"
 media3UiCompose = "1.8.0"
+nav3Core = "1.0.0-alpha01"
+lifecycleViewmodelNav3 = "1.0.0-alpha01"
+material3AdaptiveNav3 = "1.0.0-SNAPSHOT"
 
 [libraries]
 androidx-media3-common = { module = "androidx.media3:media3-common", version.ref = "media3UiCompose" }
@@ -63,6 +69,13 @@ ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kto
 
 basic-player-jvm = { module = "com.googlecode.soundlibs:basicplayer", version.ref = "basicPlayer" }
 
+# Navigation 3 libraries
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3Core" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNav3" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerializationCore" }
+androidx-material3-adaptive-navigation3 = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation3", version.ref = "material3AdaptiveNav3" }
+
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
@@ -72,3 +85,5 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+# Optional plugins
+jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization" }
