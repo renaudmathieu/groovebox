@@ -41,13 +41,6 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
             implementation(libs.ktor.client.android)
-
-            // Navigation 3 libraries
-            implementation(libs.androidx.navigation3.ui)
-            implementation(libs.androidx.navigation3.runtime)
-            implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-            // NOTE: Uncomment the line below after adding the proper AndroidX snapshot repository per androidx.dev instructions
-            // implementation(libs.androidx.material3.adaptive.navigation3)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -65,6 +58,12 @@ kotlin {
 
             // Kotlinx Serialization core
             implementation(libs.kotlinx.serialization.core)
+
+            // JetBrains Compose Navigation (multiplatform)
+            implementation(libs.androidx.navigation.compose)
+
+            // Material icons extended
+            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
 
             // Ktor client for HTTP requests
             implementation(libs.ktor.client.core)

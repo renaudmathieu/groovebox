@@ -25,12 +25,6 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // AndroidX snapshot repository needed for Material3 adaptive Navigation 3 snapshots
-        maven(url = "https://androidx.dev/snapshots/builds/latest/artifacts/repository") {
-            mavenContent {
-                includeGroupAndSubgroups("androidx.compose.material3.adaptive")
-            }
-        }
     }
 }
 
