@@ -12,6 +12,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        // Initialize shared application context for Media3 player
+        AppContextHolder.init(applicationContext)
+
         setContent {
             App()
         }

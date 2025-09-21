@@ -1,136 +1,68 @@
 
 package com.renaudmathieu
 
-import android.media.AudioManager
-import android.media.MediaPlayer
-import java.io.IOException
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 
-class DefaultAudioPlayer() : AudioPlayer {
+class DefaultAudioPlayer : AudioPlayer {
 
-    private var mediaPlayer: MediaPlayer? = null
-    private var _currentVolume: Float = 1.0f
-    private var _isMuted: Boolean = false
-    private var isPrepared: Boolean = false
-    private var pendingPlay: Boolean = false
+    private val player: ExoPlayer by lazy {
+        ExoPlayer.Builder(AppContextHolder.applicationContext).build()
+    }
 
-    override val currentVolume: Float get() = _currentVolume
-    override val isMuted: Boolean get() = _isMuted
+    override val currentVolume: Float
+        get() = player.volume
+
+    override val isMuted: Boolean
+        get() = player.volume == 0f
+
+    // New API
+    override fun load(track: Track) {
+        val mediaItem = MediaItem.fromUri(track.url)
+        player.setMediaItem(mediaItem)
+        player.prepare()
+    }
 
     override fun play() {
-        if (isPrepared) mediaPlayer?.start() else pendingPlay = true
+        player.playWhenReady = true
+        player.play()
     }
 
     override fun pause() {
-        mediaPlayer?.pause()
+        player.pause()
     }
 
     override fun stop() {
-        mediaPlayer?.stop()
-        isPrepared = false
-        pendingPlay = false
-    }
-
-    override fun resume() {
-        if (mediaPlayer?.isPlaying == false && isPrepared) {
-            mediaPlayer?.start()
-        }
+        player.stop()
+        player.clearMediaItems()
     }
 
     override fun seekTo(positionMs: Long) {
-        if (isPrepared) {
-            mediaPlayer?.seekTo(positionMs.toInt())
-        }
+        player.seekTo(positionMs)
     }
 
-    override fun getCurrentPosition(): Long {
-        return if (isPrepared) {
-            mediaPlayer?.currentPosition?.toLong() ?: 0L
-        } else {
-            0L
-        }
+    override fun position(): Long {
+        return player.currentPosition
     }
 
-    override fun getDuration(): Long {
-        return if (isPrepared) {
-            mediaPlayer?.duration?.toLong() ?: 0L
-        } else {
-            0L
-        }
+    override fun duration(): Long {
+        val d = player.duration
+        return if (d == C.TIME_UNSET) 0L else d
     }
 
-    override fun setDataSource(track: Track) {
-        try {
-            // Reset previous state
-            reset()
-            isPrepared = false
-            pendingPlay = false
+    // Legacy API bridging (to satisfy existing callers)
+    override fun getCurrentPosition(): Long = position()
 
-            mediaPlayer = MediaPlayer().apply {
-                setAudioStreamType(AudioManager.STREAM_MUSIC)
+    override fun getDuration(): Long = duration()
 
-                // Set up listeners
-                setOnPreparedListener { mp ->
-                    isPrepared = true
-                    // Apply current volume settings
-                    if (_isMuted) {
-                        mp.setVolume(0f, 0f)
-                    } else {
-                        mp.setVolume(_currentVolume, _currentVolume)
-                    }
+    override fun setDataSource(track: Track) = load(track)
 
-                    // Auto-play if play was called before preparation
-                    if (pendingPlay) {
-                        mp.start()
-                        pendingPlay = false
-                    }
-                }
+    override fun reset() = stop()
 
-                setOnErrorListener { mp, what, extra ->
-                    Logger.e("MediaPlayer error: what=$what, extra=$extra", tag = "DefaultAudioPlayer")
-                    isPrepared = false
-                    pendingPlay = false
-                    true // Return true to indicate error was handled
-                }
-
-                setOnCompletionListener { mp ->
-                    // Handle playback completion if needed
-                    Logger.i("Playback completed", tag = "DefaultAudioPlayer")
-                }
-
-                // Set data source and prepare asynchronously
-                setDataSource(track.url)
-                prepareAsync()
-            }
-        } catch (e: IOException) {
-            Logger.e("Error setting data source: ${e.message}", e, tag = "DefaultAudioPlayer")
-            isPrepared = false
-            pendingPlay = false
-        } catch (e: IllegalStateException) {
-            Logger.e("IllegalStateException setting data source: ${e.message}", e, tag = "DefaultAudioPlayer")
-            isPrepared = false
-            pendingPlay = false
-        }
-    }
-
-    override fun reset() {
-        try {
-            mediaPlayer?.reset()
-            isPrepared = false
-            pendingPlay = false
-        } catch (e: IllegalStateException) {
-            Logger.e("Error resetting MediaPlayer: ${e.message}", e, tag = "DefaultAudioPlayer")
-        }
-    }
+    override fun resume() = play()
 
     override fun release() {
-        try {
-            mediaPlayer?.release()
-            mediaPlayer = null
-            isPrepared = false
-            pendingPlay = false
-        } catch (e: Exception) {
-            Logger.e("Error releasing MediaPlayer: ${e.message}", e, tag = "DefaultAudioPlayer")
-        }
+        player.release()
     }
-
 }

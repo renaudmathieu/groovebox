@@ -37,9 +37,8 @@ fun MusicPlayer(
         }
     }
 
-    // Set up the track when the composable is first created
+    // Manage lifecycle: release player on dispose
     DisposableEffect(Unit) {
-        viewModel.setDataSource(uiState.track)
         onDispose {
             viewModel.release()
         }
@@ -64,12 +63,12 @@ fun MusicPlayer(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Make Love",
+                text = uiState.track.title,
                 style = MaterialTheme.typography.headlineLarge,
             )
 
             Text(
-                text = "Daft Punk",
+                text = uiState.track.artist,
                 style = MaterialTheme.typography.titleLarge,
                 color = Color(0xFF2c3647),
                 fontFamily = RobotoFontFamily()

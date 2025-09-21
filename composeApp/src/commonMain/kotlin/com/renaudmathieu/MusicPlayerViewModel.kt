@@ -7,12 +7,33 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+
 class MusicPlayerViewModel(
-    private val audioPlayer: AudioPlayer
-) : ViewModel() {
+    private val repository: MusicPlayerRepository
+) : ViewModel(), KoinComponent {
+
+    private val audioPlayer: AudioPlayer by inject()
 
     private val _musicPlayerUiState = MutableStateFlow(MusicPlayerUiState())
     val musicPlayerUiState: StateFlow<MusicPlayerUiState> = _musicPlayerUiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            try {
+                val track = repository.loadFirstTrack()
+                if (track != null) {
+                    setDataSource(track)
+                }
+            } catch (t: Throwable) {
+                // Log or ignore for now
+                println("Failed to load initial track: ${t.message}")
+            }
+        }
+    }
     
     // Methods
     fun togglePlayPause() {
