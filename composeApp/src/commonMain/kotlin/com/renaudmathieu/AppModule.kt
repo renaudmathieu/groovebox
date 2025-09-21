@@ -5,5 +5,6 @@ import org.koin.dsl.module
 
 val appModule = module {
     single { MusicPlayerRepository(get()) }
+    viewModelOf(::HomeViewModel)
     viewModelOf(::MusicPlayerViewModel)
 }

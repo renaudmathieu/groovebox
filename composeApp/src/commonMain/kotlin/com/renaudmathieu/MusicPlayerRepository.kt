@@ -46,9 +46,30 @@ class MusicPlayerRepository(
         )
     }
 
+    fun parseTracks(raw: String): List<Track> {
+        // Very basic JSON parsing using regex for the expected server response format
+        val objRegex = Regex("\\{\\\"id\\\":\\\"([^\\\"]+)\\\",\\\"title\\\":\\\"([^\\\"]+)\\\",\\\"artist\\\":\\\"([^\\\"]+)\\\",\\\"duration\\\":(\\d+)\\}")
+        return objRegex.findAll(raw).map { match ->
+            val (id, title, artist, durationStr) = match.destructured
+            val duration = durationStr.toLongOrNull() ?: 0L
+            Track(
+                id = id,
+                title = title,
+                artist = artist,
+                url = streamingUrlFor(id),
+                duration = duration
+            )
+        }.toList()
+    }
+
     suspend fun loadFirstTrack(): Track? {
         val raw = fetchTracksRaw()
         return parseFirstTrack(raw)
+    }
+
+    suspend fun loadTracks(): List<Track> {
+        val raw = fetchTracksRaw()
+        return parseTracks(raw)
     }
 
     // Audio control methods delegated to the underlying AudioPlayer
