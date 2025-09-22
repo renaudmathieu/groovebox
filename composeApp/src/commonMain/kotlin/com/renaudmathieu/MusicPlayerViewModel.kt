@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class MusicPlayerViewModel(
     private val repository: MusicPlayerRepository,
@@ -59,8 +61,8 @@ class MusicPlayerViewModel(
     }
 
     fun updatePosition() {
-        val currentPosition = repository.getCurrentPosition()
-        val duration = repository.getDuration()
+        val currentPosition = repository.position()
+        val duration = repository.duration()
         _musicPlayerUiState.update {
             it.copy(
                 currentPosition = currentPosition,
@@ -69,9 +71,21 @@ class MusicPlayerViewModel(
         }
     }
 
-    fun setDataSource(track: Track) {
-        repository.setDataSource(track)
-        _musicPlayerUiState.update { it.copy(track = track) }
+    fun load(track: Track) {
+        repository.load(track)
+        _musicPlayerUiState.update { it.copy(track = track, currentPosition = 0L, duration = 0L, isPlaying = false) }
+        // After loading, duration may not be immediately available (player prepares asynchronously).
+        // Poll briefly until duration is known or timeout.
+        viewModelScope.launch {
+            repeat(30) { // ~3 seconds total
+                val dur = repository.duration()
+                if (dur > 0) {
+                    _musicPlayerUiState.update { it.copy(duration = dur) }
+                    return@launch
+                }
+                delay(100)
+            }
+        }
     }
 
     fun release() {

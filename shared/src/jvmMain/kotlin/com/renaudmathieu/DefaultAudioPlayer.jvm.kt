@@ -54,18 +54,10 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         } catch (e: Exception) {
             Logger.e("Error during stop: ${e.message}", e, tag = "DefaultAudioPlayer")
         }
+        lastKnownPositionMs = 0L
         isPlayerReady = false // Player needs to be re-opened after stop
     }
 
-    override fun resume() {
-        try {
-            if (player.status == BasicPlayer.PAUSED) {
-                player.resume()
-            }
-        } catch (e: Exception) {
-            Logger.e("Error during resume: ${e.message}", e, tag = "DefaultAudioPlayer")
-        }
-    }
 
     override fun seekTo(positionMs: Long) {
         if (!isPlayerReady || currentTrackDuration == 0L) return
@@ -84,16 +76,16 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         }
     }
 
-    override fun getCurrentPosition(): Long {
+    override fun position(): Long {
         return lastKnownPositionMs
     }
 
 
-    override fun getDuration(): Long {
+    override fun duration(): Long {
         return currentTrackDuration
     }
 
-    override fun setDataSource(track: Track) {
+    override fun load(track: Track) {
         try {
             if (player.status != BasicPlayer.STOPPED && player.status != BasicPlayer.UNKNOWN) {
                 player.stop() // Stop any current playback
@@ -116,19 +108,6 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         }
     }
 
-    override fun reset() {
-        try {
-            if (player.status != BasicPlayer.STOPPED && player.status != BasicPlayer.UNKNOWN) {
-                player.stop()
-            }
-        } catch (e: Exception) {
-            Logger.e("Error during reset: ${e.message}", e, tag = "DefaultAudioPlayer")
-        }
-        isPlayerReady = false
-        currentTrackDuration = 0L
-        // BasicPlayer doesn't have a specific reset method like MediaPlayer.
-        // Stopping it and re-opening a new source is the way.
-    }
 
     override fun release() {
         try {
@@ -149,19 +128,27 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
     override fun opened(stream: Any?, properties: MutableMap<Any?, Any?>?) {
         isPlayerReady = true
         currentTrackDuration = 0L // Reset before trying to read
+        lastKnownPositionMs = 0L
         if (properties != null) {
-            // Duration is often in microseconds in "duration" key
-            val durationMicroseconds = properties["duration"] as? Long
-            if (durationMicroseconds != null) {
-                currentTrackDuration = (durationMicroseconds / 1000.0).roundToLong()
-            } else {
-                // Fallback for MP3, TDA files, etc.
-                val mp3duration = properties["mp3.length.microseconds"] as? Long // Common for MP3
-                if (mp3duration != null) {
-                    currentTrackDuration = (mp3duration / 1000.0).roundToLong()
-                } else {
-                    Logger.w("Duration not found in properties: $properties", tag = "DefaultAudioPlayer")
+            // Duration is often in microseconds in one of several keys
+            val durationUsCandidates = listOf(
+                properties["duration"],
+                properties["mp3.length.microseconds"],
+                properties["audio.length.microseconds"]
+            )
+            val durationUs = durationUsCandidates.firstNotNullOfOrNull {
+                when (it) {
+                    is Long -> it
+                    is Int -> it.toLong()
+                    is Double -> it.roundToLong()
+                    is Float -> it.toLong()
+                    else -> null
                 }
+            }
+            if (durationUs != null && durationUs > 0) {
+                currentTrackDuration = (durationUs / 1000.0).roundToLong()
+            } else {
+                Logger.w("Duration not found in properties: $properties", tag = "DefaultAudioPlayer")
             }
             Logger.i(
                 "Track opened. Duration: $currentTrackDuration ms. Properties: $properties",
@@ -184,11 +171,22 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         properties: MutableMap<Any?, Any?>?
     ) {
         if (!isSeeking) {
-            lastKnownPositionMs = (microseconds / 1000.0).roundToLong()
+            val posUsFromArg = if (microseconds > 0) microseconds else null
+            val posUsFromProps = when (val v = properties?.get("mp3.position.microseconds")) {
+                is Long -> v
+                is Int -> v.toLong()
+                is Double -> v.roundToLong()
+                is Float -> v.toLong()
+                else -> null
+            }
+            val posUs = posUsFromArg ?: posUsFromProps
+            if (posUs != null && posUs >= 0) {
+                lastKnownPositionMs = (posUs / 1000.0).roundToLong()
+            }
         }
         // properties might contain current bitrate, etc.
         // This callback is useful for updating UI with playback progress.
-        // The `getCurrentPosition` will now use `lastKnownPositionMs`
+        // The `position()` will now use `lastKnownPositionMs`
     }
 
     // We need to override getCurrentPosition to use the value from `progress`

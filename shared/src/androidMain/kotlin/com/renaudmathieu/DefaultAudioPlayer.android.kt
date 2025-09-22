@@ -51,16 +51,6 @@ class DefaultAudioPlayer : AudioPlayer {
         return if (d == C.TIME_UNSET) 0L else d
     }
 
-    // Legacy API bridging (to satisfy existing callers)
-    override fun getCurrentPosition(): Long = position()
-
-    override fun getDuration(): Long = duration()
-
-    override fun setDataSource(track: Track) = load(track)
-
-    override fun reset() = stop()
-
-    override fun resume() = play()
 
     override fun release() {
         player.release()

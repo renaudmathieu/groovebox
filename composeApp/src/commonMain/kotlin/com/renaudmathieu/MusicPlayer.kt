@@ -59,11 +59,11 @@ fun MusicPlayer(
         // Collect initial track from ViewModel and set data source when available
         val autoTrack by viewModel.initialTrack.collectAsStateWithLifecycle()
         LaunchedEffect(autoTrack) {
-            autoTrack?.let { viewModel.setDataSource(it) }
+            autoTrack?.let { viewModel.load(it) }
         }
     } else {
         LaunchedEffect(initialTrack) {
-            viewModel.setDataSource(initialTrack)
+            viewModel.load(initialTrack)
         }
     }
 

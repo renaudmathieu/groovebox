@@ -45,9 +45,6 @@ class DefaultAudioPlayer : AudioPlayer {
         seekTo(0)
     }
 
-    override fun resume() {
-        player.play()
-    }
 
     override fun seekTo(positionMs: Long) {
         val seconds = positionMs.toDouble() / 1000.0
@@ -55,20 +52,20 @@ class DefaultAudioPlayer : AudioPlayer {
         player.seekToTime(time)
     }
 
-    override fun getCurrentPosition(): Long {
+    override fun position(): Long {
         if (player.currentItem == null) return 0L
         val time = player.currentTime()
         val seconds = CMTimeGetSeconds(time)
         return (seconds * 1000).toLong()
     }
 
-    override fun getDuration(): Long {
+    override fun duration(): Long {
         val duration = player.currentItem?.duration ?: return 0L
         val seconds = CMTimeGetSeconds(duration)
         return if (seconds.isNaN() || seconds.isInfinite()) 0L else (seconds * 1000).toLong()
     }
 
-    override fun setDataSource(track: Track) {
+    override fun load(track: Track) {
         try {
             val url = NSURL(string = track.url)
             val playerItem = AVPlayerItem(uRL = url)
@@ -78,12 +75,10 @@ class DefaultAudioPlayer : AudioPlayer {
         }
     }
 
-    override fun reset() {
-        player.replaceCurrentItemWithPlayerItem(null)
-    }
 
     override fun release() {
-        reset()
+        // Clear current item and deactivate audio session
+        player.replaceCurrentItemWithPlayerItem(null)
         try {
             audioSession.setActive(false, null)
         } catch (e: Exception) {

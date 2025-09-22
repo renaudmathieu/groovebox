@@ -60,8 +60,8 @@ class MusicPlayerRepository(
     fun pause() = audioPlayer.pause()
     fun stop() = audioPlayer.stop()
     fun seekTo(positionMs: Long) = audioPlayer.seekTo(positionMs)
-    fun getCurrentPosition(): Long = audioPlayer.getCurrentPosition()
-    fun getDuration(): Long = audioPlayer.getDuration()
-    fun setDataSource(track: Track) = audioPlayer.setDataSource(track)
+    fun position(): Long = audioPlayer.position()
+    fun duration(): Long = audioPlayer.duration()
+    fun load(track: Track) = audioPlayer.load(track)
     fun release() = audioPlayer.release()
 }
