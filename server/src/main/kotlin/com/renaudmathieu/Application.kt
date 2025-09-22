@@ -1,12 +1,17 @@
 package com.renaudmathieu
 
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import java.io.File
 import java.util.UUID
 
@@ -20,13 +25,18 @@ fun main() {
 }
 
 fun Application.module() {
+
+    install(ContentNegotiation) {
+        json()
+    }
+
     routing {
-        // Root for tests and simple health check
+
         get("/") {
             call.respondText("Ktor: ${Greeting().greet()}")
         }
 
-        // 1) Return a list of tracks (UUID, title, artist, duration)
+
         get("/tracks") {
             val id = UUID.randomUUID().toString()
             val track = Track(
@@ -36,12 +46,13 @@ fun Application.module() {
                 url = "/track/$id",
                 duration = 187000
             )
-            val tracksJson = """[{"id":"${track.id}","title":"${track.title}","artist":"${track.artist}","duration":${track.duration}}]"""
-            call.respondText(tracksJson, contentType = ContentType.Application.Json)
+
+            val tracks = listOf(
+                track
+            )
+            call.respond(tracks)
         }
 
-        // 2) Serve a track file by id and platform query param
-        // Usage: GET /track/{id}?platform=android|ios|jvm
         get("/track/{id}") {
             val platform = call.request.queryParameters["platform"]
             val validPlatforms = setOf("android", "ios", "jvm")

@@ -3,11 +3,15 @@ package com.renaudmathieu
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 class MusicPlayerRepository(
     private val audioPlayer: AudioPlayer,
     private val client: HttpClient = HttpClient()
 ) {
+    private val json = Json { ignoreUnknownKeys = true }
+
     private fun platformParam(): String {
         val lower = getPlatform().name.lowercase()
         return when {
@@ -29,37 +33,16 @@ class MusicPlayerRepository(
     suspend fun fetchTracksRaw(): String =
         client.get("${baseUrl()}/tracks").bodyAsText()
 
-    fun parseFirstTrack(raw: String): Track? {
-        // Expecting a single-element array with object shape:
-        // [{"id":"...","title":"...","artist":"...","duration":12345}]
-        val objRegex = Regex("\\{\\\"id\\\":\\\"([^\\\"]+)\\\",\\\"title\\\":\\\"([^\\\"]+)\\\",\\\"artist\\\":\\\"([^\\\"]+)\\\",\\\"duration\\\":(\\d+)\\}")
-        val match = objRegex.find(raw) ?: return null
-        val (id, title, artist, durationStr) = match.destructured
-        val duration = durationStr.toLongOrNull() ?: 0L
-        val url = streamingUrlFor(id)
-        return Track(
-            id = id,
-            title = title,
-            artist = artist,
-            url = url,
-            duration = duration
-        )
-    }
+    fun parseFirstTrack(raw: String): Track? =
+        parseTracks(raw).firstOrNull()
 
     fun parseTracks(raw: String): List<Track> {
-        // Very basic JSON parsing using regex for the expected server response format
-        val objRegex = Regex("\\{\\\"id\\\":\\\"([^\\\"]+)\\\",\\\"title\\\":\\\"([^\\\"]+)\\\",\\\"artist\\\":\\\"([^\\\"]+)\\\",\\\"duration\\\":(\\d+)\\}")
-        return objRegex.findAll(raw).map { match ->
-            val (id, title, artist, durationStr) = match.destructured
-            val duration = durationStr.toLongOrNull() ?: 0L
-            Track(
-                id = id,
-                title = title,
-                artist = artist,
-                url = streamingUrlFor(id),
-                duration = duration
-            )
-        }.toList()
+        // Parse JSON using kotlinx.serialization to be robust to field order and extras
+        val tracks: List<Track> = json.decodeFromString(raw)
+        // Ensure the streaming URL includes the platform query param and absolute base URL
+        return tracks.map { t: Track ->
+            t.copy(url = streamingUrlFor(t.id))
+        }
     }
 
     suspend fun loadFirstTrack(): Track? {
