@@ -7,7 +7,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 class MusicPlayerRepository(
-    private val audioPlayer: AudioPlayer,
     private val client: HttpClient = HttpClient()
 ) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -55,13 +54,4 @@ class MusicPlayerRepository(
         return parseTracks(raw)
     }
 
-    // Audio control methods delegated to the underlying AudioPlayer
-    fun play() = audioPlayer.play()
-    fun pause() = audioPlayer.pause()
-    fun stop() = audioPlayer.stop()
-    fun seekTo(positionMs: Long) = audioPlayer.seekTo(positionMs)
-    fun position(): Long = audioPlayer.position()
-    fun duration(): Long = audioPlayer.duration()
-    fun load(track: Track) = audioPlayer.load(track)
-    fun release() = audioPlayer.release()
 }

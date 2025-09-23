@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 
 class MusicPlayerViewModel(
     private val repository: MusicPlayerRepository,
+    private val audioPlayer: AudioPlayer,
 ) : ViewModel() {
 
     private val _musicPlayerUiState = MutableStateFlow(MusicPlayerUiState())
@@ -41,28 +42,28 @@ class MusicPlayerViewModel(
     }
 
     fun play() {
-        repository.play()
+        audioPlayer.play()
         _musicPlayerUiState.update { it.copy(isPlaying = true) }
     }
 
     fun pause() {
-        repository.pause()
+        audioPlayer.pause()
         _musicPlayerUiState.update { it.copy(isPlaying = false) }
     }
 
     fun stop() {
-        repository.stop()
+        audioPlayer.stop()
         _musicPlayerUiState.update { it.copy(isPlaying = false) }
     }
 
     fun seekTo(positionMs: Long) {
-        repository.seekTo(positionMs)
+        audioPlayer.seekTo(positionMs)
         _musicPlayerUiState.update { it.copy(currentPosition = positionMs) }
     }
 
     fun updatePosition() {
-        val currentPosition = repository.position()
-        val duration = repository.duration()
+        val currentPosition = audioPlayer.position()
+        val duration = audioPlayer.duration()
         _musicPlayerUiState.update {
             it.copy(
                 currentPosition = currentPosition,
@@ -72,13 +73,13 @@ class MusicPlayerViewModel(
     }
 
     fun load(track: Track) {
-        repository.load(track)
+        audioPlayer.load(track)
         _musicPlayerUiState.update { it.copy(track = track, currentPosition = 0L, duration = 0L, isPlaying = false) }
         // After loading, duration may not be immediately available (player prepares asynchronously).
         // Poll briefly until duration is known or timeout.
         viewModelScope.launch {
             repeat(30) { // ~3 seconds total
-                val dur = repository.duration()
+                val dur = audioPlayer.duration()
                 if (dur > 0) {
                     _musicPlayerUiState.update { it.copy(duration = dur) }
                     return@launch
@@ -89,6 +90,6 @@ class MusicPlayerViewModel(
     }
 
     fun release() {
-        repository.release()
+        audioPlayer.release()
     }
 }
