@@ -7,6 +7,10 @@ import javazoom.jlgui.basicplayer.BasicPlayerListener
 import java.io.File
 import java.net.URL
 import kotlin.math.roundToLong
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
 
@@ -17,12 +21,21 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
     private var isPlayerReady: Boolean = false
     private var isSeeking = false
 
+    private val _position = MutableStateFlow(0L)
+    override val position: StateFlow<Long> = _position.asStateFlow()
+
+    private val _duration = MutableStateFlow(0L)
+    override val duration: StateFlow<Long> = _duration.asStateFlow()
+
+    private var loadDeferred: CompletableDeferred<Unit>? = null
+    private var seekDeferred: CompletableDeferred<Unit>? = null
+
     init {
         player.addBasicPlayerListener(this)
     }
 
     override val currentVolume: Float get() = _currentVolume
-    override val isMuted: Boolean get() = _isMuted
+    override suspend fun isMuted(): Boolean = _isMuted
 
     override fun play() {
         try {
@@ -55,53 +68,57 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
             Logger.e("Error during stop: ${e.message}", e, tag = "DefaultAudioPlayer")
         }
         lastKnownPositionMs = 0L
+        _position.value = 0L
         isPlayerReady = false // Player needs to be re-opened after stop
     }
 
 
-    override fun seekTo(positionMs: Long) {
+    override suspend fun seekTo(positionMs: Long) {
         if (!isPlayerReady || currentTrackDuration == 0L) return
+        val deferred = CompletableDeferred<Unit>()
+        seekDeferred = deferred
         try {
             isSeeking = true
             // BasicPlayer's seek is in microseconds
             player.seek(positionMs * 1000)
+            try {
+                deferred.await()
+            } finally {
+                if (seekDeferred === deferred) seekDeferred = null
+            }
         } catch (e: Exception) {
             Logger.e("Error during seekTo: ${e.message}", e, tag = "DefaultAudioPlayer")
-        } finally {
-            // It's good practice to ensure seeking flag is reset
-            // BasicPlayer might take some time to actually seek, this is a simplification
-            // For more accurate seeking state, one might need to listen to PROGRESS events
-            // and compare positions.
-            isSeeking = false
         }
     }
 
-    override fun position(): Long {
-        return lastKnownPositionMs
-    }
 
-
-    override fun duration(): Long {
-        return currentTrackDuration
-    }
-
-    override fun load(track: Track) {
+    override suspend fun load(track: Track) {
         try {
             if (player.status != BasicPlayer.STOPPED && player.status != BasicPlayer.UNKNOWN) {
                 player.stop() // Stop any current playback
             }
             isPlayerReady = false
             currentTrackDuration = 0L
+            lastKnownPositionMs = 0L
+            _position.value = 0L
+            _duration.value = 0L
+
+            // Prepare to await 'opened' callback
+            val deferred = CompletableDeferred<Unit>()
+            loadDeferred = deferred
 
             if (track.url.startsWith("http://") || track.url.startsWith("https://")) {
                 player.open(URL(track.url))
             } else {
                 player.open(File(track.url))
             }
-            // Note: `open` is synchronous and might block. For network streams,
-            // it's better to do this in a background thread, then call play.
-            // For simplicity here, we'll assume it's handled.
-            // The `opened` callback will set `isPlayerReady` and `currentTrackDuration`.
+
+            // Await until opened() signals readiness
+            try {
+                deferred.await()
+            } finally {
+                if (loadDeferred === deferred) loadDeferred = null
+            }
         } catch (e: Exception) {
             Logger.e("Error setting data source: ${e.message}", e, tag = "DefaultAudioPlayer")
             isPlayerReady = false
@@ -129,6 +146,7 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         isPlayerReady = true
         currentTrackDuration = 0L // Reset before trying to read
         lastKnownPositionMs = 0L
+        _position.value = 0L
         if (properties != null) {
             // Duration is often in microseconds in one of several keys
             val durationUsCandidates = listOf(
@@ -158,8 +176,13 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
             Logger.w("Track opened, but properties are null.", tag = "DefaultAudioPlayer")
         }
 
+        // Push duration update
+        _duration.value = currentTrackDuration
         // Apply initial volume
         setVolumeInternal(_currentVolume)
+        // Complete any pending load() awaiter
+        loadDeferred?.complete(Unit)
+        loadDeferred = null
     }
 
     private var lastKnownPositionMs: Long = 0L
@@ -182,11 +205,10 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
             val posUs = posUsFromArg ?: posUsFromProps
             if (posUs != null && posUs >= 0) {
                 lastKnownPositionMs = (posUs / 1000.0).roundToLong()
+                _position.value = lastKnownPositionMs
             }
         }
         // properties might contain current bitrate, etc.
-        // This callback is useful for updating UI with playback progress.
-        // The `position()` will now use `lastKnownPositionMs`
     }
 
     // We need to override getCurrentPosition to use the value from `progress`
@@ -202,15 +224,19 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
                 BasicPlayerEvent.STOPPED -> {
                     // Reset position when stopped explicitly or at end of media
                     lastKnownPositionMs = 0L
+                    _position.value = 0L
                 }
 
                 BasicPlayerEvent.EOM -> {
                     Logger.i("End of media reached.", tag = "DefaultAudioPlayer")
                     lastKnownPositionMs = currentTrackDuration // Or 0, depending on desired behavior
+                    _position.value = lastKnownPositionMs
                 }
 
                 BasicPlayerEvent.SEEKED -> {
                     isSeeking = false // Seeking is complete
+                    seekDeferred?.complete(Unit)
+                    seekDeferred = null
                     // The `progress` event after seek will give the new position
                     Logger.i("Seek operation completed.", tag = "DefaultAudioPlayer")
                 }

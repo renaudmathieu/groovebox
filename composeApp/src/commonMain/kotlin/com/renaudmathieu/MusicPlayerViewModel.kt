@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -57,13 +58,16 @@ class MusicPlayerViewModel(
     }
 
     fun seekTo(positionMs: Long) {
-        audioPlayer.seekTo(positionMs)
-        _musicPlayerUiState.update { it.copy(currentPosition = positionMs) }
+        viewModelScope.launch {
+            audioPlayer.seekTo(positionMs)
+            _musicPlayerUiState.update { it.copy(currentPosition = positionMs) }
+        }
     }
 
     fun updatePosition() {
-        val currentPosition = audioPlayer.position()
-        val duration = audioPlayer.duration()
+        // Read hot state values from the player
+        val currentPosition = audioPlayer.position.value
+        val duration = audioPlayer.duration.value
         _musicPlayerUiState.update {
             it.copy(
                 currentPosition = currentPosition,
@@ -73,13 +77,13 @@ class MusicPlayerViewModel(
     }
 
     fun load(track: Track) {
-        audioPlayer.load(track)
-        _musicPlayerUiState.update { it.copy(track = track, currentPosition = 0L, duration = 0L, isPlaying = false) }
-        // After loading, duration may not be immediately available (player prepares asynchronously).
-        // Poll briefly until duration is known or timeout.
         viewModelScope.launch {
+            audioPlayer.load(track)
+            _musicPlayerUiState.update { it.copy(track = track, currentPosition = 0L, duration = 0L, isPlaying = false) }
+            // After loading, duration may not be immediately available (player prepares asynchronously).
+            // Poll briefly until duration is known or timeout.
             repeat(30) { // ~3 seconds total
-                val dur = audioPlayer.duration()
+                val dur = audioPlayer.duration.value
                 if (dur > 0) {
                     _musicPlayerUiState.update { it.copy(duration = dur) }
                     return@launch
