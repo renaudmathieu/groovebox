@@ -1,50 +1,69 @@
 package com.renaudmathieu
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.innerShadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import groovebox.composeapp.generated.resources.Res
 import groovebox.composeapp.generated.resources.daft_punk
-import groovebox.composeapp.generated.resources.pause
-import groovebox.composeapp.generated.resources.play_arrow
-import groovebox.composeapp.generated.resources.skip_next
-import groovebox.composeapp.generated.resources.skip_previous
-import groovebox.composeapp.generated.resources.volume_down
-import groovebox.composeapp.generated.resources.volume_up
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.math.max
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPlayer(
     modifier: Modifier = Modifier,
@@ -52,11 +71,10 @@ fun MusicPlayer(
     onBack: () -> Unit,
     initialTrack: Track? = null,
 ) {
-
     val uiState by viewModel.musicPlayerUiState.collectAsStateWithLifecycle()
 
+    // --- ViewModel Effects (unchanged) ---
     if (initialTrack == null) {
-        // Collect initial track from ViewModel and set data source when available
         val autoTrack by viewModel.initialTrack.collectAsStateWithLifecycle()
         LaunchedEffect(autoTrack) {
             autoTrack?.let { viewModel.load(it) }
@@ -74,222 +92,274 @@ fun MusicPlayer(
         }
     }
 
-    // Manage lifecycle: release player on dispose
     DisposableEffect(Unit) {
         onDispose {
             viewModel.release()
         }
     }
 
+    val gradientBackground = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFFF2D1A8),
+            Color(0xFFB3633D),
+            Color(0xFF4D365F)
+        )
+    )
+    val desertDuskBrush = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFFF2D1A8),
+            Color(0xFFB3633D),
+            Color(0xFF4D365F)
+        )
+    )
+
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "GrooveBox",
-                        style = MaterialTheme.typography.headlineLarge,
+                        text = "NOW PLAYING",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Back"
+                        )
                     }
-                }
+                },
+                actions = {
+                    IconButton(onClick = { /* TODO: More options */ }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More Options"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                )
             )
         }
     ) { innerPadding ->
-        Column(
+        BoxWithConstraints(
             modifier = modifier
-                .padding(innerPadding)
-                .padding(vertical = 24.dp)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+                .fillMaxSize()
         ) {
 
-            Card(
-                shape = MaterialTheme.shapes.extraLarge,
-            ) {
-                Image(
-                    modifier = Modifier.size(256.dp),
-                    painter = painterResource(Res.drawable.daft_punk),
-                    contentDescription = "Artwork"
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = uiState.track.title,
-                    style = MaterialTheme.typography.headlineLarge,
-                )
-
-                Text(
-                    text = uiState.track.artist,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color(0xFF2c3647),
-                    fontFamily = RobotoFontFamily()
-                )
-            }
-
-            LinearWavyProgressIndicator(
-                progress = {
-                    if (uiState.duration > 0) uiState.currentPosition.toFloat() / uiState.duration.toFloat() else 0f
-                },
+            Spacer(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(desertDuskBrush)
             )
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
+            // LAYER 2: The vignette overlay
+            Spacer(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.5f)
+                            ),
+                            center = Offset(
+                                x = maxWidth.value / 2,
+                                y = maxHeight.value / 2
+                            ),
+                            radius = max(
+                                maxWidth.value,
+                                maxHeight.value
+                            ) * 1.5f,
+                        ),
+                        shape = RectangleShape,
+                    )
+            )
+
+            // LAYER 3: Your original content column
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding) // Apply padding here
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
+                Spacer(modifier = Modifier.height(16.dp))
 
-                FilledIconButton(
-                    modifier =
-                        Modifier
-                            .shadow(
-                                elevation = 8.dp,
-                                spotColor = MaterialTheme.colorScheme.secondary,
-                                shape = MaterialTheme.shapes.extraExtraLarge,
+                // Album Art
+                Card(
+                    modifier = Modifier.size(300.dp)
+                        .dropShadow(
+                            shape = MaterialTheme.shapes.large,
+                            shadow = Shadow(
+                                radius = 10.dp,
+                                spread = 6.dp,
+                                color = Color(0x40000000),
+                                offset = DpOffset(x = 4.dp, 4.dp)
                             )
-                            .size(
-                                IconButtonDefaults.mediumContainerSize(
-                                    IconButtonDefaults.IconButtonWidthOption.Narrow
-                                )
-                            ),
-                    onClick = {
-                        viewModel.seekTo(0)
-                    },
-                    shapes = IconButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.extraExtraLarge,
-                        pressedShape = MaterialTheme.shapes.large,
-                    ),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                    )
+                        )
+                        .innerShadow(
+                            shape = MaterialTheme.shapes.large,
+                            shadow = Shadow(
+                                radius = 10.dp,
+                                spread = 2.dp,
+                                color = Color(0x40000000),
+                                offset = DpOffset(x = 6.dp, 7.dp)
+                            )
+                        ),
+                    shape = MaterialTheme.shapes.large,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.skip_previous),
-                        contentDescription = "Previous"
+                    Image(
+                        painter = painterResource(Res.drawable.daft_punk),
+                        contentDescription = "Artwork",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
-                FilledIconButton(
-                    modifier =
-                        Modifier
-                            .shadow(
-                                elevation = 8.dp,
-                                spotColor = MaterialTheme.colorScheme.primary,
-                                shape = MaterialTheme.shapes.extraExtraLarge,
-                            )
-                            .size(
-                                IconButtonDefaults.largeContainerSize(
-                                    IconButtonDefaults.IconButtonWidthOption.Uniform
-                                )
-                            ),
-                    onClick = {
-                        viewModel.togglePlayPause()
-                    },
-                    shapes = IconButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.extraExtraLarge,
-                        pressedShape = MaterialTheme.shapes.large,
-                    ),
-                ) {
-                    Icon(
-                        painter = painterResource(if (uiState.isPlaying) Res.drawable.pause else Res.drawable.play_arrow),
-                        contentDescription = if (uiState.isPlaying) "Pause" else "Play"
+                // Track Info & Controls
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = uiState.track.title,
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = uiState.track.artist,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontFamily = RobotoFontFamily() // Keeping your custom font as requested
                     )
                 }
 
-                FilledIconButton(
-                    modifier =
-                        Modifier
-                            .shadow(
-                                elevation = 8.dp,
-                                spotColor = MaterialTheme.colorScheme.secondary,
-                                shape = MaterialTheme.shapes.extraExtraLarge,
-                            )
-                            .size(
-                                IconButtonDefaults.mediumContainerSize(
-                                    IconButtonDefaults.IconButtonWidthOption.Narrow
-                                )
-                            ),
-                    onClick = {
-                        if (uiState.duration > 0) {
-                            viewModel.seekTo(uiState.duration)
-                        }
-                    },
-                    shapes = IconButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.extraExtraLarge,
-                        pressedShape = MaterialTheme.shapes.large,
-                    ),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
+
+                // Progress Slider
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Slider(
+                        value = uiState.currentPosition.toFloat(),
+                        onValueChange = { newPosition -> viewModel.seekTo(newPosition.toLong()) },
+                        valueRange = 0f..(uiState.duration.toFloat().takeIf { it > 0 } ?: 1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color(0xFFE91E63),
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        )
                     )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatTime(uiState.currentPosition),
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = formatTime(uiState.duration),
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                // Media Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.skip_next),
-                        contentDescription = "Next"
-                    )
+                    IconButton(onClick = { /* Shuffle */ }) {
+                        Icon(
+                            Icons.Default.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                    IconButton(onClick = { viewModel.seekTo(0) }) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { viewModel.togglePlayPause() },
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                            tint = Color(0xFF1A163C),
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                    IconButton(onClick = { if (uiState.duration > 0) viewModel.seekTo(uiState.duration) }) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    IconButton(onClick = { /* Repeat */ }) {
+                        Icon(
+                            Icons.Default.Repeat,
+                            contentDescription = "Repeat",
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                // Secondary Controls (Favorite, Volume)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { /* Favorite */ }) {
+                        Icon(
+                            Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                    IconButton(onClick = { /* Volume Control */ }) {
+                        Icon(
+                            Icons.Default.VolumeUp,
+                            contentDescription = "Volume",
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-
-                FilledTonalIconButton(
-                    modifier =
-                        Modifier
-                            .size(
-                                IconButtonDefaults.mediumContainerSize(
-                                    IconButtonDefaults.IconButtonWidthOption.Uniform
-                                )
-                            ),
-                    onClick = {
-                        // Volume control is not consistently available across platforms
-                        // This is a placeholder for volume down functionality
-                        // In a real app, you might implement platform-specific volume control
-                        println("Volume down button clicked")
-                    },
-                    shapes = IconButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.large,
-                        pressedShape = MaterialTheme.shapes.small,
-                    ),
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.volume_down),
-                        contentDescription = "Volume Down"
-                    )
-                }
-
-                FilledTonalIconButton(
-                    modifier =
-                        Modifier
-                            .size(
-                                IconButtonDefaults.mediumContainerSize(
-                                    IconButtonDefaults.IconButtonWidthOption.Uniform
-                                )
-                            ),
-                    onClick = {
-                        // Volume control is not consistently available across platforms
-                        // This is a placeholder for volume up functionality
-                        // In a real app, you might implement platform-specific volume control
-                        println("Volume up button clicked")
-                    },
-                    shapes = IconButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.large,
-                        pressedShape = MaterialTheme.shapes.small,
-                    ),
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.volume_up),
-                        contentDescription = "Volume Up"
-                    )
-                }
-            }
-
         }
     }
+}
+
+/**
+ * Helper function to format milliseconds into a M:SS time string.
+ */
+private fun formatTime(millis: Long): String {
+    val totalSeconds = millis / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "$minutes:$seconds"
 }
