@@ -81,7 +81,7 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         try {
             isSeeking = true
             // BasicPlayer's seek is in microseconds
-            player.seek(positionMs * 1000)
+            player.seek(positionMs)
             try {
                 deferred.await()
             } finally {

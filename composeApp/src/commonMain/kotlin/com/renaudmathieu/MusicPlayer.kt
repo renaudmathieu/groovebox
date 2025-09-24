@@ -73,7 +73,6 @@ fun MusicPlayer(
 ) {
     val uiState by viewModel.musicPlayerUiState.collectAsStateWithLifecycle()
 
-    // --- ViewModel Effects (unchanged) ---
     if (initialTrack == null) {
         val autoTrack by viewModel.initialTrack.collectAsStateWithLifecycle()
         LaunchedEffect(autoTrack) {
@@ -97,21 +96,7 @@ fun MusicPlayer(
             viewModel.release()
         }
     }
-
-    val gradientBackground = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFFF2D1A8),
-            Color(0xFFB3633D),
-            Color(0xFF4D365F)
-        )
-    )
-    val desertDuskBrush = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFFF2D1A8),
-            Color(0xFFB3633D),
-            Color(0xFF4D365F)
-        )
-    )
+    
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -155,11 +140,7 @@ fun MusicPlayer(
                 .fillMaxSize()
         ) {
 
-            Spacer(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(desertDuskBrush)
-            )
+            GradientSurface { }
 
             // LAYER 2: The vignette overlay
             Spacer(
@@ -230,7 +211,7 @@ fun MusicPlayer(
                 // Track Info & Controls
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = uiState.track.title,
+                        text = uiState.track?.title ?: "",
                         style = MaterialTheme.typography.headlineLarge,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -239,7 +220,7 @@ fun MusicPlayer(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = uiState.track.artist,
+                        text = uiState.track?.artist ?: "",
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White.copy(alpha = 0.7f),
                         fontFamily = RobotoFontFamily() // Keeping your custom font as requested
