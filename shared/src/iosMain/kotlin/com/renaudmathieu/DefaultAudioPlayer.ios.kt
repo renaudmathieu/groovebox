@@ -27,8 +27,9 @@ class DefaultAudioPlayer : AudioPlayer {
     private val _position = MutableStateFlow(0L)
     override val position: StateFlow<Long> = _position.asStateFlow()
 
-    private val _duration = MutableStateFlow(0L)
-    override val duration: StateFlow<Long> = _duration.asStateFlow()
+    private var _durationMs: Long = 0L
+    override val duration: Long
+        get() = _durationMs
 
     private var timeObserver: Any? = null
 
@@ -77,7 +78,7 @@ class DefaultAudioPlayer : AudioPlayer {
 
     override suspend fun load(track: Track) {
         _position.value = 0L
-        _duration.value = 0L
+        _durationMs = 0L
         try {
             val url = NSURL(string = track.url)
             val playerItem = AVPlayerItem(uRL = url)
@@ -92,7 +93,7 @@ class DefaultAudioPlayer : AudioPlayer {
             if (item != null) {
                 val s = CMTimeGetSeconds(item.duration)
                 if (!s.isNaN() && !s.isInfinite() && s > 0) {
-                    _duration.value = (s * 1000).toLong()
+                    _durationMs = (s * 1000).toLong()
                     break
                 }
                 // If status is ready, duration may still be 0 for streaming; keep waiting until > 0 or timeout
@@ -128,8 +129,8 @@ class DefaultAudioPlayer : AudioPlayer {
                 val dSec = CMTimeGetSeconds(item.duration)
                 if (!dSec.isNaN() && !dSec.isInfinite()) {
                     val ms = (dSec * 1000).toLong()
-                    if (ms != duration.value) {
-                        _duration.value = ms
+                    if (ms != _durationMs) {
+                        _durationMs = ms
                     }
                 }
             }

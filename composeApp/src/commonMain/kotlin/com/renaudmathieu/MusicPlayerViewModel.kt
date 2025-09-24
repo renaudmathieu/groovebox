@@ -80,7 +80,7 @@ class MusicPlayerViewModel(
     fun updatePosition() {
         // Read hot state values from the player
         val currentPosition = audioPlayer.position.value
-        val duration = audioPlayer.duration.value
+        val duration = audioPlayer.duration
         _musicPlayerUiState.update {
             it.copy(
                 currentPosition = currentPosition,
@@ -96,7 +96,7 @@ class MusicPlayerViewModel(
             // After loading, duration may not be immediately available (player prepares asynchronously).
             // Poll briefly until duration is known or timeout.
             repeat(30) { // ~3 seconds total
-                val dur = audioPlayer.duration.value
+                val dur = audioPlayer.duration
                 if (dur > 0) {
                     _musicPlayerUiState.update { it.copy(duration = dur) }
                     return@launch

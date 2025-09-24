@@ -29,8 +29,9 @@ class DefaultAudioPlayer : AudioPlayer, Player.Listener {
     private val _position = MutableStateFlow(0L)
     override val position: StateFlow<Long> = _position.asStateFlow()
 
-    private val _duration = MutableStateFlow(0L)
-    override val duration: StateFlow<Long> = _duration.asStateFlow()
+    private var _durationMs: Long = 0L
+    override val duration: Long
+        get() = _durationMs
 
     override val currentVolume: Float
         get() = player.volume
@@ -43,14 +44,14 @@ class DefaultAudioPlayer : AudioPlayer, Player.Listener {
 
     override suspend fun load(track: Track) {
         _position.value = 0L
-        _duration.value = 0L
+        _durationMs = 0L
         return suspendCancellableCoroutine { cont ->
             val listener = object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     if (state == Player.STATE_READY) {
                         player.removeListener(this)
                         val d = player.duration
-                        _duration.value = if (d == C.TIME_UNSET) 0L else d
+                        _durationMs = if (d == C.TIME_UNSET) 0L else d
                         if (!cont.isCompleted) cont.resume(Unit)
                     }
                 }
@@ -110,7 +111,7 @@ class DefaultAudioPlayer : AudioPlayer, Player.Listener {
         _position.value = player.currentPosition
         if (state == Player.STATE_READY) {
             val d = player.duration
-            _duration.value = if (d == C.TIME_UNSET) 0L else d
+            _durationMs = if (d == C.TIME_UNSET) 0L else d
         }
         updateTicker()
     }
@@ -123,7 +124,7 @@ class DefaultAudioPlayer : AudioPlayer, Player.Listener {
         _position.value = p.currentPosition
         if (events.contains(Player.EVENT_TIMELINE_CHANGED) || events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) || events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
             val d = p.duration
-            _duration.value = if (d == C.TIME_UNSET) 0L else d
+            _durationMs = if (d == C.TIME_UNSET) 0L else d
         }
     }
 

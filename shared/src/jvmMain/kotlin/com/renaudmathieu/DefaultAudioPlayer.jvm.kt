@@ -24,8 +24,9 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
     private val _position = MutableStateFlow(0L)
     override val position: StateFlow<Long> = _position.asStateFlow()
 
-    private val _duration = MutableStateFlow(0L)
-    override val duration: StateFlow<Long> = _duration.asStateFlow()
+    private var _durationMs: Long = 0L
+    override val duration: Long
+        get() = _durationMs
 
     private var loadDeferred: CompletableDeferred<Unit>? = null
     private var seekDeferred: CompletableDeferred<Unit>? = null
@@ -101,7 +102,7 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
             currentTrackDuration = 0L
             lastKnownPositionMs = 0L
             _position.value = 0L
-            _duration.value = 0L
+            _durationMs = 0L
 
             // Prepare to await 'opened' callback
             val deferred = CompletableDeferred<Unit>()
@@ -177,7 +178,7 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         }
 
         // Push duration update
-        _duration.value = currentTrackDuration
+        _durationMs = currentTrackDuration
         // Apply initial volume
         setVolumeInternal(_currentVolume)
         // Complete any pending load() awaiter
