@@ -1,5 +1,6 @@
 package com.renaudmathieu
 
+import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -10,17 +11,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-class DefaultAudioPlayer : AudioPlayer, Player.Listener {
+class DefaultAudioPlayer(
+    private val context: Context
+) : AudioPlayer, Player.Listener {
 
     private val player: ExoPlayer by lazy {
-        ExoPlayer.Builder(AppContextHolder.applicationContext).build()
+        ExoPlayer.Builder(context.applicationContext).build()
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

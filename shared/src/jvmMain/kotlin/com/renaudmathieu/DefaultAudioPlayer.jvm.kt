@@ -4,13 +4,13 @@ import javazoom.jlgui.basicplayer.BasicController
 import javazoom.jlgui.basicplayer.BasicPlayer
 import javazoom.jlgui.basicplayer.BasicPlayerEvent
 import javazoom.jlgui.basicplayer.BasicPlayerListener
-import java.io.File
-import java.net.URL
-import kotlin.math.roundToLong
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import java.net.URL
+import kotlin.math.roundToLong
 
 class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
 
@@ -43,7 +43,7 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
             if (isPlayerReady && player.status != BasicPlayer.PLAYING) {
                 player.play()
             } else if (!isPlayerReady) {
-                Logger.w("Player not ready. Call setDataSource first.", tag = "DefaultAudioPlayer")
+                Logger.w("Player not ready. Call load() first.", tag = "DefaultAudioPlayer")
             }
         } catch (e: Exception) {
             Logger.e("Error during play: ${e.message}", e, tag = "DefaultAudioPlayer")
@@ -212,11 +212,6 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         // properties might contain current bitrate, etc.
     }
 
-    // We need to override getCurrentPosition to use the value from `progress`
-    // This is a common pattern when the player updates via events.
-    fun getActualCurrentPosition(): Long {
-        return lastKnownPositionMs
-    }
 
     override fun stateUpdated(event: BasicPlayerEvent?) {
         event?.let {
@@ -267,14 +262,4 @@ class DefaultAudioPlayer : AudioPlayer, BasicPlayerListener {
         }
     }
 
-    // Public methods from AudioPlayer that might affect volume
-    fun setVolume(volume: Float) { // Assuming this is the intended API from a potential extended interface
-        _currentVolume = volume.coerceIn(0.0f, 1.0f)
-        setVolumeInternal(_currentVolume)
-    }
-
-    fun setMuted(muted: Boolean) { // Assuming this is the intended API
-        _isMuted = muted
-        setVolumeInternal(_currentVolume)
-    }
 }

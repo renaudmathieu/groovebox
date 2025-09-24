@@ -1,7 +1,7 @@
 package com.renaudmathieu
 
 import android.os.Build
-import org.koin.core.module.dsl.singleOf
+import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -12,5 +12,5 @@ class AndroidPlatform : Platform {
 actual fun getPlatform(): Platform = AndroidPlatform()
 
 actual val platformModule = module {
-    singleOf(::DefaultAudioPlayer) bind AudioPlayer::class
+    single { DefaultAudioPlayer(androidContext()) } bind AudioPlayer::class
 }

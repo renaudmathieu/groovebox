@@ -11,10 +11,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-
-        // Initialize shared application context for Media3 player
-        AppContextHolder.init(applicationContext)
-
+        
         setContent {
             App()
         }
