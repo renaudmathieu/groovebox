@@ -246,12 +246,14 @@ fun MusicPlayer(
                     )
                 }
 
-
-                // Progress Slider
+                Spacer(modifier = Modifier.height(8.dp))
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Slider(
                         value = uiState.currentPosition.toFloat(),
                         onValueChange = { newPosition -> viewModel.seekTo(newPosition.toLong()) },
+                        onValueChangeFinished = {
+                            viewModel.seekTo(uiState.currentPosition)
+                        },
                         valueRange = 0f..(uiState.duration.toFloat().takeIf { it > 0 } ?: 1f),
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
@@ -289,7 +291,7 @@ fun MusicPlayer(
                             tint = Color.White.copy(alpha = 0.7f)
                         )
                     }
-                    IconButton(onClick = { viewModel.seekTo(0) }) {
+                    IconButton(onClick = { viewModel.previous() }) {
                         Icon(
                             Icons.Default.SkipPrevious,
                             contentDescription = "Previous",
@@ -311,7 +313,7 @@ fun MusicPlayer(
                             modifier = Modifier.size(48.dp)
                         )
                     }
-                    IconButton(onClick = { if (uiState.duration > 0) viewModel.seekTo(uiState.duration) }) {
+                    IconButton(onClick = { viewModel.next() }) {
                         Icon(
                             Icons.Default.SkipNext,
                             contentDescription = "Next",
@@ -361,5 +363,6 @@ private fun formatTime(millis: Long): String {
     val totalSeconds = millis / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return "$minutes:$seconds"
+    val paddedSeconds = seconds.toString().padStart(2, '0')
+    return "$minutes:$paddedSeconds"
 }

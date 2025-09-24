@@ -64,6 +64,19 @@ class MusicPlayerViewModel(
         }
     }
 
+    fun previous() {
+        // Go to the beginning of the current track
+        seekTo(0L)
+    }
+
+    fun next() {
+        // Jump to end of current track (acts as next placeholder)
+        val dur = _musicPlayerUiState.value.duration
+        if (dur > 0L) {
+            seekTo(dur)
+        }
+    }
+
     fun updatePosition() {
         // Read hot state values from the player
         val currentPosition = audioPlayer.position.value

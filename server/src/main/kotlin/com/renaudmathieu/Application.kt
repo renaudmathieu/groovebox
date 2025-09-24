@@ -41,8 +41,8 @@ fun Application.module() {
             val id = UUID.randomUUID().toString()
             val track = Track(
                 id = id,
-                title = "Sample Track",
-                artist = "Unknown Artist",
+                title = "Make Love",
+                artist = "Daft Punk",
                 url = "/track/$id",
                 duration = 187000
             )
