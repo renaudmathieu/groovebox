@@ -14,9 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -24,9 +23,12 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +44,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.geometry.Offset
@@ -63,7 +64,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.max
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicPlayer(
     modifier: Modifier = Modifier,
@@ -96,7 +97,7 @@ fun MusicPlayer(
             viewModel.release()
         }
     }
-    
+
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -106,23 +107,14 @@ fun MusicPlayer(
                     Text(
                         text = "NOW PLAYING",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
+                            imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft,
                             contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: More options */ }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More Options"
                         )
                     }
                 },
@@ -165,7 +157,6 @@ fun MusicPlayer(
                     )
             )
 
-            // LAYER 3: Your original content column
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -208,8 +199,9 @@ fun MusicPlayer(
                     )
                 }
 
-                // Track Info & Controls
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         text = uiState.track?.title ?: "",
                         style = MaterialTheme.typography.headlineLarge,
@@ -223,12 +215,14 @@ fun MusicPlayer(
                         text = uiState.track?.artist ?: "",
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White.copy(alpha = 0.7f),
-                        fontFamily = RobotoFontFamily() // Keeping your custom font as requested
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Column(modifier = Modifier.fillMaxWidth()) {
+
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Slider(
                         value = uiState.currentPosition.toFloat(),
                         onValueChange = { newPosition -> viewModel.seekTo(newPosition.toLong()) },
@@ -259,7 +253,6 @@ fun MusicPlayer(
                     }
                 }
 
-                // Media Controls
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -280,12 +273,17 @@ fun MusicPlayer(
                             modifier = Modifier.size(36.dp)
                         )
                     }
-                    IconButton(
-                        onClick = { viewModel.togglePlayPause() },
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
+                    Button(
+                        modifier = Modifier.size(72.dp),
+                        onClick = viewModel::togglePlayPause,
+                        shapes = ButtonDefaults.shapes(
+                            pressedShape = MaterialTheme.shapes.large,
+                            shape = CircleShape
+                        ),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color(0xFF1A163C)
+                        )
                     ) {
                         Icon(
                             imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,

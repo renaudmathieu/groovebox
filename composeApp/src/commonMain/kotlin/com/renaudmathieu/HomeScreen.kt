@@ -10,7 +10,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -25,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -48,7 +50,11 @@ fun HomeScreen(
                     title = {
                         Text(
                             text = "GrooveBox",
-                            style = MaterialTheme.typography.headlineLarge,
+                        )
+                    },
+                    subtitle = {
+                        Text(
+                            text = "droidcon Berlin 2025",
                         )
                     }
                 )
@@ -57,8 +63,7 @@ fun HomeScreen(
             Column(
                 modifier = modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
+                    .padding(innerPadding),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -82,6 +87,11 @@ fun HomeScreen(
                         ) {
                             items(tracks) { track ->
                                 ListItem(
+                                    modifier = Modifier
+                                        .clickable { onTrackSelected(track) },
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = Color.Black.copy(alpha = 0.0f)
+                                    ),
                                     headlineContent = {
                                         Text(
                                             text = track.title,
@@ -100,13 +110,8 @@ fun HomeScreen(
                                             Text("Play")
                                         }
                                     },
-                                    modifier = Modifier
-                                        .clickable { onTrackSelected(track) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    colors = androidx.compose.material3.ListItemDefaults.colors(
-                                        containerColor = Color.Transparent
+
                                     )
-                                )
                             }
                         }
                     }
