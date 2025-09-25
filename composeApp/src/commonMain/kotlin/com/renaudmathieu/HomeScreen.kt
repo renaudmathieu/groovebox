@@ -46,119 +46,121 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+                title = {
+                    Text(
+                        text = "GrooveBox",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                },
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator()
+                }
 
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                CenterAlignedTopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                    ),
-                    title = {
-                        Text(
-                            text = "GrooveBox",
-                            style = MaterialTheme.typography.headlineLarge
-                        )
-                    },
-                )
-            }
-        ) { innerPadding ->
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                when {
-                    isLoading -> {
-                        CircularProgressIndicator()
-                    }
+                error != null -> {
 
-                    error != null -> {
-
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(32.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f)
-                                )
-                            ) {
-                                Text(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    text = "Error: $error",
-                                    color = Color.White,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-
-                    else -> {
-                        Text(
-                            modifier = Modifier.fillMaxWidth()
-                                .padding(
-                                    start = 32.dp,
-                                    end = 32.dp,
-                                    top = 24.dp
-                                ),
-                            text = "Tracks",
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    start = 32.dp,
-                                    end = 32.dp,
-                                    bottom = 32.dp,
-                                    top = 8.dp
-                                ),
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = Color.White.copy(alpha = 0.1f)
                             )
                         ) {
+                            Text(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                text = "Error: $error",
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
 
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(tracks) { track ->
-                                    ListItem(
-                                        modifier = Modifier
-                                            .clickable { onTrackSelected(track) },
-                                        colors = ListItemDefaults.colors(
-                                            containerColor = Color.Black.copy(alpha = 0.0f)
-                                        ),
-                                        headlineContent = {
-                                            Text(
-                                                text = track.title,
-                                                style = MaterialTheme.typography.titleLarge
-                                            )
-                                        },
-                                        supportingContent = {
-                                            Text(
-                                                text = track.artist,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        },
-                                        trailingContent = {
-                                            FilledIconButton(
-                                                onClick = { onTrackSelected(track) }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.PlayArrow,
-                                                    contentDescription = "Play",
-                                                )
-                                            }
-                                        },
+                else -> {
+                    Text(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(
+                                start = 32.dp,
+                                end = 32.dp,
+                                top = 24.dp
+                            ),
+                        text = "Tracks",
+                        //color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = 32.dp,
+                                end = 32.dp,
+                                bottom = 32.dp,
+                                top = 8.dp
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    ) {
 
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(tracks) { track ->
+                                ListItem(
+                                    modifier = Modifier
+                                        .clickable { onTrackSelected(track) },
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = Color.Black.copy(alpha = 0.0f)
+                                    ),
+                                    headlineContent = {
+                                        Text(
+                                            text = track.title,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            //color = MaterialTheme.colorScheme.onPrimary
                                         )
-                                }
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            modifier = Modifier,
+                                            text = track.artist,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            //color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    },
+                                    trailingContent = {
+                                        FilledIconButton(
+                                            onClick = { onTrackSelected(track) }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Play",
+                                            )
+                                        }
+                                    },
+
+                                    )
                             }
                         }
                     }
@@ -166,3 +168,4 @@ fun HomeScreen(
             }
         }
     }
+}

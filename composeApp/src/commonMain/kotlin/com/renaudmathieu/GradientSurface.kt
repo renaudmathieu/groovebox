@@ -14,6 +14,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import kotlin.math.max
 
+val desertDuskBrush = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFFF2D1A8),
+        Color(0xFFB3633D),
+        Color(0xFF4D365F)
+    )
+)
 /**
  * GradientSurface: A reusable gradient background using the Desert Dusk palette.
  *
@@ -27,13 +34,6 @@ fun GradientSurface(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val desertDuskBrush = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFFF2D1A8),
-            Color(0xFFB3633D),
-            Color(0xFF4D365F)
-        )
-    )
 
     BoxWithConstraints(
         modifier = modifier
@@ -68,6 +68,6 @@ fun GradientSurface(
                     shape = RectangleShape,
                 )
         )
-        
+
     }
 }
