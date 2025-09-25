@@ -31,7 +31,7 @@ class HomeViewModel(
             try {
                 _tracks.value = repository.loadTracks()
             } catch (t: Throwable) {
-                _error.value = t.message ?: "Unknown error"
+                _error.value = t.message ?: "You forgot to start the server…"
             } finally {
                 _isLoading.value = false
             }
