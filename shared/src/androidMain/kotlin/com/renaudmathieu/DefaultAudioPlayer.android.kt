@@ -1,148 +1,219 @@
 package com.renaudmathieu
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 
-class DefaultAudioPlayer(
-    private val context: Context
-) : AudioPlayer, Player.Listener {
+class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
 
-    private val player: ExoPlayer by lazy {
-        ExoPlayer.Builder(context.applicationContext).build()
-    }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var tickerJob: Job? = null
-
+    private var exoPlayer: ExoPlayer? = null
     private val _position = MutableStateFlow(0L)
+    private val errorCount = AtomicInteger(0)
+    private val handler = Handler(Looper.getMainLooper())
+    private var positionUpdateJob: Job? = null
+    private var onErrorCallback: () -> Unit = {}
+
     override val position: StateFlow<Long> = _position.asStateFlow()
 
-    private var _durationMs: Long = 0L
     override val duration: Long
-        get() = _durationMs
+        get() = exoPlayer?.duration?.takeIf { it != C.TIME_UNSET } ?: 0L
 
     override val currentVolume: Float
-        get() = player.volume
+        get() = exoPlayer?.volume ?: 1.0f
 
-    override suspend fun isMuted(): Boolean = player.volume == 0f
+    private val playerListener = object : Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            when (playbackState) {
+                Player.STATE_IDLE -> {
+                    stopPositionUpdates()
+                }
 
-    init {
-        player.addListener(this)
-    }
+                Player.STATE_BUFFERING -> {
+                    // Keep current position, don't update yet
+                }
 
-    override suspend fun load(track: Track) {
-        _position.value = 0L
-        _durationMs = 0L
-        return suspendCancellableCoroutine { cont ->
-            val listener = object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_READY) {
-                        player.removeListener(this)
-                        val d = player.duration
-                        _durationMs = if (d == C.TIME_UNSET) 0L else d
-                        if (!cont.isCompleted) cont.resume(Unit)
+                Player.STATE_READY -> {
+                    if (exoPlayer?.isPlaying == true) {
+                        startPositionUpdates()
                     }
                 }
+
+                Player.STATE_ENDED -> {
+                    stopPositionUpdates()
+                    errorCount.set(0)
+                }
             }
-            player.addListener(listener)
-            val mediaItem = MediaItem.fromUri(track.url)
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            cont.invokeOnCancellation { player.removeListener(listener) }
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) {
+                startPositionUpdates()
+            } else {
+                stopPositionUpdates()
+            }
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            if (errorCount.incrementAndGet() <= 5) {
+                onErrorCallback()
+            } else {
+                exoPlayer?.stop()
+            }
         }
     }
 
-    override fun play() {
-        player.playWhenReady = true
-        player.play()
+    init {
+        initializePlayer()
     }
 
-    override fun pause() {
-        player.pause()
+    @OptIn(UnstableApi::class)
+    private fun initializePlayer() {
+        if (exoPlayer == null) {
+            exoPlayer = ExoPlayer.Builder(context)
+                .setLooper(Looper.getMainLooper())
+                .build()
+                .apply {
+                    addListener(playerListener)
+                }
+        }
     }
 
-    override fun stop() {
-        player.stop()
-        player.clearMediaItems()
-        _position.value = 0L
-    }
+    override suspend fun load(track: Track) = suspendCancellableCoroutine { continuation ->
+        val player = exoPlayer ?: run {
+            initializePlayer()
+            exoPlayer!!
+        }
 
-    override fun release() {
-        tickerJob?.cancel()
-        player.removeListener(this)
-        player.release()
-        scope.cancel()
+        // Validate file if it's a local path
+        if (!track.url.startsWith("http")) {
+            val file = File(track.url)
+            if (!file.exists()) {
+                onErrorCallback()
+                continuation.resume(Unit)
+                return@suspendCancellableCoroutine
+            }
+
+            if (file.length() == 0L) {
+                onErrorCallback()
+                continuation.resume(Unit)
+                return@suspendCancellableCoroutine
+            }
+        }
+
+        try {
+            val mediaItem = if (track.url.startsWith("http")) {
+                MediaItem.fromUri(track.url)
+            } else {
+                MediaItem.fromUri("file://${track.url}")
+            }
+
+            player.setMediaItem(mediaItem)
+            player.prepare()
+
+            val listener = object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        player.removeListener(this)
+                        _position.value = 0L
+                        continuation.resume(Unit)
+                    }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    player.removeListener(this)
+                    onErrorCallback()
+                    continuation.resume(Unit)
+                }
+            }
+
+            player.addListener(listener)
+
+            continuation.invokeOnCancellation {
+                player.removeListener(listener)
+            }
+
+        } catch (e: Exception) {
+            onErrorCallback()
+            continuation.resume(Unit)
+        }
     }
 
     override suspend fun seekTo(positionMs: Long) {
-        return suspendCancellableCoroutine { cont ->
-            val listener = object : Player.Listener {
-                override fun onPositionDiscontinuity(
-                    oldPosition: Player.PositionInfo,
-                    newPosition: Player.PositionInfo,
-                    reason: Int
-                ) {
-                    if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-                        player.removeListener(this)
-                        if (!cont.isCompleted) cont.resume(Unit)
-                    }
-                }
+        handler.post {
+            exoPlayer?.seekTo(positionMs)
+            _position.value = positionMs
+        }
+    }
+
+    override suspend fun isMuted(): Boolean {
+        return exoPlayer?.volume == 0f
+    }
+
+    override fun play() {
+        handler.post {
+            exoPlayer?.play()
+        }
+    }
+
+    override fun pause() {
+        handler.post {
+            exoPlayer?.pause()
+        }
+    }
+
+    override fun stop() {
+        handler.post {
+            exoPlayer?.stop()
+            _position.value = 0L
+            stopPositionUpdates()
+        }
+    }
+
+    override fun release() {
+        stopPositionUpdates()
+        exoPlayer?.removeListener(playerListener)
+        exoPlayer?.release()
+        exoPlayer = null
+        _position.value = 0L
+    }
+
+    fun setOnError(callback: () -> Unit) {
+        this.onErrorCallback = callback
+    }
+
+    // Efficient position updates only when playing
+    private fun startPositionUpdates() {
+        if (positionUpdateJob?.isActive == true) return
+
+        positionUpdateJob = CoroutineScope(Dispatchers.Main).launch {
+            while (exoPlayer?.isPlaying == true) {
+                _position.value = exoPlayer?.currentPosition ?: 0L
+                delay(100) // Update every 100ms
             }
-            player.addListener(listener)
-            player.seekTo(positionMs)
-            cont.invokeOnCancellation { player.removeListener(listener) }
         }
     }
 
-    override fun onPlaybackStateChanged(state: Int) {
-        _position.value = player.currentPosition
-        if (state == Player.STATE_READY) {
-            val d = player.duration
-            _durationMs = if (d == C.TIME_UNSET) 0L else d
-        }
-        updateTicker()
-    }
-
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-        updateTicker()
-    }
-
-    override fun onEvents(p: Player, events: Player.Events) {
-        _position.value = p.currentPosition
-        if (events.contains(Player.EVENT_TIMELINE_CHANGED) || events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) || events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
-            val d = p.duration
-            _durationMs = if (d == C.TIME_UNSET) 0L else d
-        }
-    }
-
-    private fun updateTicker() {
-        val shouldRun = player.isPlaying
-        if (shouldRun && tickerJob == null) {
-            tickerJob = scope.launch {
-                while (player.isPlaying) {
-                    _position.value = player.currentPosition
-                    delay(100)
-                }
-                tickerJob = null
-            }
-        } else if (!shouldRun) {
-            tickerJob?.cancel()
-            tickerJob = null
-        }
+    private fun stopPositionUpdates() {
+        positionUpdateJob?.cancel()
+        positionUpdateJob = null
     }
 }
