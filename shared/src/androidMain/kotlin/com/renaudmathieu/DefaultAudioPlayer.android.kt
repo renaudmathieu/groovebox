@@ -109,7 +109,6 @@ class DefaultAudioPlayer(
         }
     }
 
-    // Player.Listener callbacks
     override fun onPlaybackStateChanged(state: Int) {
         _position.value = player.currentPosition
         if (state == Player.STATE_READY) {

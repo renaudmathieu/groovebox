@@ -1,18 +1,28 @@
 package com.renaudmathieu
 
+
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.setActive
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
+import platform.AVFoundation.AVPlayerItemFailedToPlayToEndTimeNotification
+import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
+import platform.AVFoundation.AVPlayerItemStatusUnknown
+import platform.AVFoundation.AVPlayerTimeControlStatusPlaying
+import platform.AVFoundation.AVURLAsset
 import platform.AVFoundation.addPeriodicTimeObserverForInterval
-import platform.AVFoundation.currentItem
+import platform.AVFoundation.currentTime
 import platform.AVFoundation.duration
 import platform.AVFoundation.isMuted
 import platform.AVFoundation.pause
@@ -20,9 +30,14 @@ import platform.AVFoundation.play
 import platform.AVFoundation.removeTimeObserver
 import platform.AVFoundation.replaceCurrentItemWithPlayerItem
 import platform.AVFoundation.seekToTime
+import platform.AVFoundation.timeControlStatus
 import platform.AVFoundation.volume
 import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMakeWithSeconds
+import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileSize
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSNumber
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 import platform.UIKit.beginReceivingRemoteControlEvents
@@ -31,119 +46,213 @@ import kotlin.coroutines.resume
 @OptIn(ExperimentalForeignApi::class)
 class DefaultAudioPlayer : AudioPlayer {
 
-    private val player: AVPlayer = AVPlayer()
-    private val audioSession: AVAudioSession = AVAudioSession.sharedInstance()
-
+    private val avPlayer: AVPlayer = AVPlayer()
+    private var timeObserver: Any? = null
+    private var statusObserver: Job? = null
+    private var positionUpdateJob: Job? = null
     private val _position = MutableStateFlow(0L)
+    private var trackDuration: Long = 0L
+    private lateinit var audioSession: AVAudioSession
+
     override val position: StateFlow<Long> = _position.asStateFlow()
 
-    private var _durationMs: Long = 0L
     override val duration: Long
-        get() = _durationMs
+        get() = trackDuration
 
-    private var timeObserver: Any? = null
+    override val currentVolume: Float
+        get() = avPlayer.volume
 
     init {
+        setupAudioSession()
+    }
+
+    private fun setupAudioSession() {
         try {
-            audioSession.setCategory(AVAudioSessionCategoryPlayback, null)
-            audioSession.setActive(true, null)
             UIApplication.sharedApplication.beginReceivingRemoteControlEvents()
+
+            audioSession = AVAudioSession.sharedInstance()
+            audioSession.setCategory(
+                category = AVAudioSessionCategoryPlayback,
+                error = null,
+            )
+            audioSession.setActive(
+                active = true,
+                error = null,
+            )
         } catch (e: Exception) {
-            Logger.e("Failed to setup audio session: ${e.message}")
+            // Audio session setup failed, continue without it
         }
     }
 
-    override val currentVolume: Float
-        get() = player.volume()
+    override suspend fun load(track: Track) = suspendCancellableCoroutine<Unit> { continuation ->
+        try {
+            // Clean up previous observers and reset state
+            cleanup()
+            trackDuration = 0L
+            _position.value = 0L
 
-    override suspend fun isMuted(): Boolean = player.isMuted()
+            // Validate file if it's a local path
+            if (!track.url.startsWith("http")) {
+                val fileManager = NSFileManager.defaultManager
+                if (!fileManager.fileExistsAtPath(track.url)) {
+                    continuation.resume(Unit)
+                    return@suspendCancellableCoroutine
+                }
 
-    override fun play() {
-        ensureTimeObserver()
-        player.play()
-    }
+                // Check file size
+                val attributes = fileManager.attributesOfItemAtPath(track.url, null)
+                val fileSize = attributes?.get(NSFileSize) as? NSNumber
+                if (fileSize?.longValue == 0L) {
+                    continuation.resume(Unit)
+                    return@suspendCancellableCoroutine
+                }
+            }
 
-    override fun pause() {
-        player.pause()
-    }
+            val url = if (track.url.startsWith("http")) {
+                NSURL.URLWithString(track.url)
+            } else {
+                NSURL.fileURLWithPath(track.url)
+            } ?: run {
+                continuation.resume(Unit)
+                return@suspendCancellableCoroutine
+            }
 
-    override fun stop() {
-        player.pause()
-        // reset position to 0 and seek
-        _position.value = 0L
-        // fire and forget seek to start
-        val time = CMTimeMakeWithSeconds(0.0, 1000)
-        player.seekToTime(time)
+            val asset = AVURLAsset(url, mapOf("AVURLAssetOutOfBandMIMETypeKey" to "audio/mpeg"))
+            val playerItem = AVPlayerItem(asset)
+
+            // Add observer for player item failure
+            val notificationCenter = NSNotificationCenter.defaultCenter
+            val failureObserver = notificationCenter.addObserverForName(
+                AVPlayerItemFailedToPlayToEndTimeNotification,
+                `object` = playerItem,
+                queue = null
+            ) { _ ->
+                // Player item failed, but we still resume to avoid hanging
+                continuation.resume(Unit)
+            }
+
+            // Use a coroutine to poll the player item status instead of KVO
+            val checkStatusJob = CoroutineScope(Dispatchers.Main).launch {
+                var attempts = 0
+                while (attempts < 50 && playerItem.status == AVPlayerItemStatusUnknown) {
+                    delay(100)
+                    attempts++
+                }
+
+                when (playerItem.status) {
+                    AVPlayerItemStatusReadyToPlay -> {
+                        val duration = playerItem.duration
+                        val durationSeconds = CMTimeGetSeconds(duration)
+                        if (!durationSeconds.isNaN() && !durationSeconds.isInfinite()) {
+                            trackDuration = (durationSeconds * 1000).toLong()
+                        }
+                        setupTimeObserver()
+                    }
+
+                    else -> {
+                        // Failed or still unknown after timeout
+                    }
+                }
+
+                notificationCenter.removeObserver(failureObserver)
+                continuation.resume(Unit)
+            }
+
+            avPlayer.replaceCurrentItemWithPlayerItem(playerItem)
+
+            continuation.invokeOnCancellation {
+                notificationCenter.removeObserver(failureObserver)
+                checkStatusJob.cancel()
+            }
+
+        } catch (e: Exception) {
+            continuation.resume(Unit)
+        }
     }
 
     override suspend fun seekTo(positionMs: Long) {
-        val seconds = positionMs.toDouble() / 1000.0
-        val time = CMTimeMakeWithSeconds(seconds, 1000)
-        return suspendCancellableCoroutine { cont ->
-            player.seekToTime(time) { _ ->
-                if (!cont.isCompleted) cont.resume(Unit)
-            }
-        }
+        val time = CMTimeMakeWithSeconds(positionMs.toDouble() / 1000.0, 1000)
+        avPlayer.seekToTime(time)
+        _position.value = positionMs
     }
 
-    override suspend fun load(track: Track) {
+    override suspend fun isMuted(): Boolean {
+        return avPlayer.isMuted()
+    }
+
+    override fun play() {
+        avPlayer.play()
+        startPositionUpdates()
+    }
+
+    override fun pause() {
+        avPlayer.pause()
+        stopPositionUpdates()
+    }
+
+    override fun stop() {
+        avPlayer.pause()
+        val zeroTime = CMTimeMakeWithSeconds(0.0, 1000)
+        avPlayer.seekToTime(zeroTime)
         _position.value = 0L
-        _durationMs = 0L
-        try {
-            val url = NSURL(string = track.url)
-            val playerItem = AVPlayerItem(uRL = url)
-            player.replaceCurrentItemWithPlayerItem(playerItem)
-        } catch (e: Exception) {
-            Logger.e("Failed to set data source: ${e.message}")
-        }
-        // Wait until duration is known or item is ready, with a timeout
-        var attempts = 0
-        while (attempts < 50) { // ~5 seconds
-            val item = player.currentItem
-            if (item != null) {
-                val s = CMTimeGetSeconds(item.duration)
-                if (!s.isNaN() && !s.isInfinite() && s > 0) {
-                    _durationMs = (s * 1000).toLong()
-                    break
-                }
-                // If status is ready, duration may still be 0 for streaming; keep waiting until > 0 or timeout
-            }
-            delay(100)
-            attempts++
-        }
-        ensureTimeObserver()
+        stopPositionUpdates()
     }
 
     override fun release() {
-        if (timeObserver != null) {
-            player.removeTimeObserver(timeObserver!!)
-            timeObserver = null
-        }
-        // Clear current item and deactivate audio session
-        player.replaceCurrentItemWithPlayerItem(null)
+        cleanup()
         try {
             audioSession.setActive(false, null)
         } catch (e: Exception) {
-            Logger.e("Failed to deactivate audio session: ${e.message}")
+            // Ignore audio session deactivation errors
         }
     }
 
-    private fun ensureTimeObserver() {
-        if (timeObserver != null) return
-        val interval = CMTimeMakeWithSeconds(0.1, 1000)
-        timeObserver = player.addPeriodicTimeObserverForInterval(interval, null) { time ->
-            val seconds = CMTimeGetSeconds(time)
-            _position.value = (seconds * 1000).toLong()
-            val item = player.currentItem
-            if (item != null) {
-                val dSec = CMTimeGetSeconds(item.duration)
-                if (!dSec.isNaN() && !dSec.isInfinite()) {
-                    val ms = (dSec * 1000).toLong()
-                    if (ms != _durationMs) {
-                        _durationMs = ms
-                    }
-                }
+    private fun cleanup() {
+        stopPositionUpdates()
+
+        timeObserver?.let { observer ->
+            avPlayer.removeTimeObserver(observer)
+            timeObserver = null
+        }
+
+        trackDuration = 0L
+        _position.value = 0L
+    }
+
+    private fun setupTimeObserver() {
+        val interval = CMTimeMakeWithSeconds(0.1, 1000) // 100ms intervals
+
+        timeObserver = avPlayer.addPeriodicTimeObserverForInterval(
+            interval = interval,
+            queue = null
+        ) { time ->
+            val timeSeconds = CMTimeGetSeconds(time)
+            if (!timeSeconds.isNaN() && !timeSeconds.isInfinite()) {
+                val positionMs = (timeSeconds * 1000).toLong()
+                _position.value = positionMs
             }
         }
+    }
+
+    private fun startPositionUpdates() {
+        // AVPlayer's time observer handles most position updates
+        // This is a backup mechanism for consistency
+        stopPositionUpdates()
+        positionUpdateJob = CoroutineScope(Dispatchers.Main).launch {
+            while (avPlayer.timeControlStatus == AVPlayerTimeControlStatusPlaying) {
+                val currentTime = avPlayer.currentTime()
+                val timeSeconds = CMTimeGetSeconds(currentTime)
+                if (!timeSeconds.isNaN() && !timeSeconds.isInfinite()) {
+                    val positionMs = (timeSeconds * 1000).toLong()
+                    _position.value = positionMs
+                }
+                delay(100)
+            }
+        }
+    }
+
+    private fun stopPositionUpdates() {
+        positionUpdateJob?.cancel()
+        positionUpdateJob = null
     }
 }
