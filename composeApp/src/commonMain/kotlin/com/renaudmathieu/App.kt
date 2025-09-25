@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.KoinMultiplatformApplication
@@ -17,14 +16,6 @@ import org.koin.dsl.KoinConfiguration
 @Serializable
 internal object Home
 
-@Serializable
-internal data class MusicPlayerRoute(
-    val id: String,
-    val title: String,
-    val artist: String,
-    val url: String,
-    val duration: Long,
-)
 
 @OptIn(
     ExperimentalMaterial3ExpressiveApi::class,
@@ -49,30 +40,7 @@ fun App() {
                     startDestination = Home
                 ) {
                     composable<Home> {
-                        HomeScreen(
-                            onTrackSelected = { track ->
-                                navController.navigate(
-                                    MusicPlayerRoute(
-                                        id = track.id,
-                                        title = track.title,
-                                        artist = track.artist,
-                                        url = track.url,
-                                        duration = track.duration,
-                                    )
-                                )
-                            }
-                        )
-                    }
-                    composable<MusicPlayerRoute> { backStackEntry ->
-                        val route = backStackEntry.toRoute<MusicPlayerRoute>()
-                        val track = Track(
-                            id = route.id,
-                            title = route.title,
-                            artist = route.artist,
-                            url = route.url,
-                            duration = route.duration
-                        )
-                        MusicPlayer(onBack = { navController.navigateUp() }, initialTrack = track)
+                        HomeScreen()
                     }
                 }
             }

@@ -22,11 +22,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,11 +45,11 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
-    onTrackSelected: (Track) -> Unit,
 ) {
     val tracks by viewModel.tracks.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -130,7 +135,7 @@ fun HomeScreen(
                             items(tracks) { track ->
                                 ListItem(
                                     modifier = Modifier
-                                        .clickable { onTrackSelected(track) },
+                                        .clickable { selectedTrack = track },
                                     colors = ListItemDefaults.colors(
                                         containerColor = Color.Black.copy(alpha = 0.0f)
                                     ),
@@ -151,7 +156,7 @@ fun HomeScreen(
                                     },
                                     trailingContent = {
                                         FilledIconButton(
-                                            onClick = { onTrackSelected(track) }
+                                            onClick = { selectedTrack = track }
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.PlayArrow,
@@ -163,6 +168,23 @@ fun HomeScreen(
                                     )
                             }
                         }
+                    }
+                }
+            }
+            if (selectedTrack != null) {
+                ModalBottomSheet(
+                    shape = MaterialTheme.shapes.extraExtraLarge,
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = Color.Transparent,
+                    onDismissRequest = { selectedTrack = null },
+                    dragHandle = {}
+                ) {
+                    GradientSurface {
+                        MusicPlayer(
+                            modifier = Modifier.padding(16.dp),
+                            onBack = { selectedTrack = null },
+                            initialTrack = selectedTrack
+                        )
                     }
                 }
             }

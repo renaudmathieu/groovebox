@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -92,14 +92,13 @@ fun MusicPlayer(
         }
     }
 
-
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "NOW PLAYING",
+                        text = "Music Player",
                         style = MaterialTheme.typography.titleMedium,
                         letterSpacing = 2.sp
                     )
@@ -107,7 +106,7 @@ fun MusicPlayer(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft,
+                            imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Back"
                         )
                     }
