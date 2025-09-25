@@ -41,37 +41,39 @@ fun App() {
         logLevel = Level.INFO,
     ) {
         GroovyTheme {
-            val navController = rememberNavController()
+            GradientSurface {
+                val navController = rememberNavController()
 
-            NavHost(
-                navController = navController,
-                startDestination = Home
-            ) {
-                composable<Home> {
-                    HomeScreen(
-                        onTrackSelected = { track ->
-                            navController.navigate(
-                                MusicPlayerRoute(
-                                    id = track.id,
-                                    title = track.title,
-                                    artist = track.artist,
-                                    url = track.url,
-                                    duration = track.duration,
+                NavHost(
+                    navController = navController,
+                    startDestination = Home
+                ) {
+                    composable<Home> {
+                        HomeScreen(
+                            onTrackSelected = { track ->
+                                navController.navigate(
+                                    MusicPlayerRoute(
+                                        id = track.id,
+                                        title = track.title,
+                                        artist = track.artist,
+                                        url = track.url,
+                                        duration = track.duration,
+                                    )
                                 )
-                            )
-                        }
-                    )
-                }
-                composable<MusicPlayerRoute> { backStackEntry ->
-                    val route = backStackEntry.toRoute<MusicPlayerRoute>()
-                    val track = Track(
-                        id = route.id,
-                        title = route.title,
-                        artist = route.artist,
-                        url = route.url,
-                        duration = route.duration
-                    )
-                    MusicPlayer(onBack = { navController.navigateUp() }, initialTrack = track)
+                            }
+                        )
+                    }
+                    composable<MusicPlayerRoute> { backStackEntry ->
+                        val route = backStackEntry.toRoute<MusicPlayerRoute>()
+                        val track = Track(
+                            id = route.id,
+                            title = route.title,
+                            artist = route.artist,
+                            url = route.url,
+                            duration = route.duration
+                        )
+                        MusicPlayer(onBack = { navController.navigateUp() }, initialTrack = track)
+                    }
                 }
             }
         }
