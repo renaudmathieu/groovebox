@@ -20,17 +20,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 
-class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
+class DefaultAudioPlayer(
+    private val context: Context
+) : AudioPlayer {
 
     private var exoPlayer: ExoPlayer? = null
     private val _position = MutableStateFlow(0L)
-    private val errorCount = AtomicInteger(0)
     private val handler = Handler(Looper.getMainLooper())
     private var positionUpdateJob: Job? = null
-    private var onErrorCallback: () -> Unit = {}
 
     override val position: StateFlow<Long> = _position.asStateFlow()
 
@@ -48,7 +47,7 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
                 }
 
                 Player.STATE_BUFFERING -> {
-                    // Keep current position, don't update yet
+                    // Nothing to do
                 }
 
                 Player.STATE_READY -> {
@@ -59,7 +58,6 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
 
                 Player.STATE_ENDED -> {
                     stopPositionUpdates()
-                    errorCount.set(0)
                 }
             }
         }
@@ -73,11 +71,7 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            if (errorCount.incrementAndGet() <= 5) {
-                onErrorCallback()
-            } else {
-                exoPlayer?.stop()
-            }
+            exoPlayer?.stop()
         }
     }
 
@@ -103,17 +97,14 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
             exoPlayer!!
         }
 
-        // Validate file if it's a local path
         if (!track.url.startsWith("http")) {
             val file = File(track.url)
             if (!file.exists()) {
-                onErrorCallback()
                 continuation.resume(Unit)
                 return@suspendCancellableCoroutine
             }
 
             if (file.length() == 0L) {
-                onErrorCallback()
                 continuation.resume(Unit)
                 return@suspendCancellableCoroutine
             }
@@ -140,7 +131,6 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
 
                 override fun onPlayerError(error: PlaybackException) {
                     player.removeListener(this)
-                    onErrorCallback()
                     continuation.resume(Unit)
                 }
             }
@@ -152,7 +142,6 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
             }
 
         } catch (e: Exception) {
-            onErrorCallback()
             continuation.resume(Unit)
         }
     }
@@ -196,11 +185,6 @@ class DefaultAudioPlayer(private val context: Context) : AudioPlayer {
         _position.value = 0L
     }
 
-    fun setOnError(callback: () -> Unit) {
-        this.onErrorCallback = callback
-    }
-
-    // Efficient position updates only when playing
     private fun startPositionUpdates() {
         if (positionUpdateJob?.isActive == true) return
 

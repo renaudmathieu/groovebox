@@ -48,7 +48,6 @@ class DefaultAudioPlayer : AudioPlayer {
 
     private val avPlayer: AVPlayer = AVPlayer()
     private var timeObserver: Any? = null
-    private var statusObserver: Job? = null
     private var positionUpdateJob: Job? = null
     private val _position = MutableStateFlow(0L)
     private var trackDuration: Long = 0L
