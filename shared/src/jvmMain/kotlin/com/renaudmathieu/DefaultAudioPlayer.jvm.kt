@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
@@ -58,13 +59,16 @@ class DefaultAudioPlayer : AudioPlayer {
             pcmdata: ByteArray?,
             properties: Map<*, *>?
         ) {
-            _position.value = microseconds / 1000
+            val currentTimeInSeconds = microseconds / 1000
+            _position.update { currentTimeInSeconds }
         }
 
         override fun stateUpdated(event: BasicPlayerEvent?) {
             event?.let {
                 when (it.code) {
-                    BasicPlayerEvent.PLAYING -> startPositionUpdates()
+                    BasicPlayerEvent.PLAYING -> {
+                        startPositionUpdates()
+                    }
                     BasicPlayerEvent.PAUSED, BasicPlayerEvent.STOPPED -> stopPositionUpdates()
                 }
             }
@@ -122,7 +126,7 @@ class DefaultAudioPlayer : AudioPlayer {
         try {
             if (trackDuration > 0) {
                 val seekRatio = positionMs / trackDuration
-                basicPlayer.seek(seekRatio.coerceIn(0, 1))
+                basicPlayer.seek(seekRatio)
             }
         } catch (e: Exception) {
             // Seek failed, ignore
@@ -178,8 +182,8 @@ class DefaultAudioPlayer : AudioPlayer {
         positionUpdateJob = CoroutineScope(Dispatchers.IO).launch {
             while (basicPlayer.status == BasicPlayer.PLAYING) {
                 try {
-                    val currentPos = trackDuration
-                    _position.value = currentPos
+                    //val currentPos = position.value
+                    //_position.update { currentPos }
                 } catch (e: Exception) {
                     // Position update failed, ignore
                 }
